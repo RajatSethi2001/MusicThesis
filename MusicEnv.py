@@ -14,6 +14,8 @@ features_per_note = 3
 notes_per_frame = 3
 features_per_frame = features_per_note * notes_per_frame
 
+speed_training = True
+
 class MusicEnv(gym.Env):
     def __init__(self):
         self.observation_space = Box(low=0.0, high=1.0, shape=(1, features_per_frame), dtype=np.float32)
@@ -27,6 +29,20 @@ class MusicEnv(gym.Env):
     def step(self, action):
         self.prev_frame = self.current_frame
         self.current_frame = tuple(action[0])
+
+        if speed_training:
+            skip = True
+            for index in range(0, len(self.current_frame), features_per_note):
+                pitch = int(self.unscale(self.current_frame[index], 0, 127))
+                duration = int(self.unscale(self.current_frame[index + 2], 0, 15))
+                if pitch not in [0, 127] and duration != 0:
+                    skip = False
+                    break
+            
+            if skip:
+                input("Speed Training: Skipping frame, please press any key to continue.")
+                return self.current_frame, 0, False, {}
+
         self.render()
         reward = None
         while reward is None or reward < 0 or reward > 10:
