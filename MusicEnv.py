@@ -49,11 +49,16 @@ class MusicEnv(gym.Env):
         frame_file = self.convert_frames_to_midi([self.prev_frame, self.current_frame])
         
         media = self.vlc_instance.media_new(frame_file)
-        self.player.set_media(media)
-        self.player.play()
-        time.sleep(1.5)
-        duration = self.player.get_length() / 1000
-        time.sleep(duration)
+        replay = True
+        while replay:
+            self.player.set_media(media)
+            self.player.play()
+            time.sleep(1.5)
+            duration = self.player.get_length() / 1000
+            time.sleep(duration)
+            play_again = input("Play again? [Y/N]: ")
+            if play_again not in "yY":
+                replay = False
 
     def convert_frames_to_midi(self, frames):
         track = 0
@@ -64,6 +69,7 @@ class MusicEnv(gym.Env):
         mf.addTempo(track, 0, 120)
 
         total_delay = 0
+        print()
         for frame in range(len(frames)):
             frame_delay = 0
             for note in range(notes_per_frame):
@@ -84,7 +90,8 @@ class MusicEnv(gym.Env):
                 if (delay + duration > frame_delay):
                     frame_delay = delay + duration
                 print(f"Frame {frame + 1} - Note {note + 1}: Pitch {pitch} - Delay {delay} - Duration {duration}")
-                mf.addNote(track, frame * notes_per_frame + note, pitch, total_delay + delay, duration, volume)
+                if duration != 0:
+                    mf.addNote(track, frame * notes_per_frame + note, pitch, total_delay + delay, duration, volume)
             total_delay += frame_delay
             print()
         
