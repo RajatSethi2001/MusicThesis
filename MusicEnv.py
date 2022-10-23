@@ -25,6 +25,7 @@ class MusicEnv(gym.Env):
         self.vlc_instance = vlc.Instance()
         self.player = self.vlc_instance.media_player_new()
         self.player.audio_set_volume(100)
+        self.last_skipped = False
 
     def step(self, action):
         self.prev_frame = self.current_frame
@@ -35,12 +36,13 @@ class MusicEnv(gym.Env):
             for index in range(0, len(self.current_frame), features_per_note):
                 pitch = int(self.unscale(self.current_frame[index], 0, 127))
                 duration = int(self.unscale(self.current_frame[index + 2], 0, 15))
-                if pitch not in [0, 127] and duration != 0:
+                if pitch >= 15 and pitch <= 112 and duration != 0:
                     skip = False
                     break
             
             if skip:
-                input("Speed Training: Skipping frame, please press any key to continue.")
+                print("Speed Training: Skipping Frame")
+                self.last_skipped = True
                 return self.current_frame, 0, False, {}
 
         self.render()
@@ -54,11 +56,13 @@ class MusicEnv(gym.Env):
                 print("Invalid input.")
 
         # input("Please close out of the MIDI file, then press any key.")
+        self.last_skipped = False
         return self.current_frame, self.scale(reward, 0, 10), False, {}
 
     def reset(self):
         self.prev_frame = tuple([0 for _ in range(features_per_frame)])
         self.current_frame = ([0 for _ in range(features_per_frame)])
+        self.last_skipped = False
         return self.prev_frame
 
     def render(self):
@@ -87,28 +91,31 @@ class MusicEnv(gym.Env):
         total_delay = 0
         print()
         for frame in range(len(frames)):
-            frame_delay = 0
-            for note in range(notes_per_frame):
-                pitch = 0
-                delay = 0
-                duration = 0
-                for feature in range(features_per_note):
-                    index = note * features_per_note + feature
-                    value = frames[frame][index]
-                    if feature == 0:
-                        pitch = int(self.unscale(value, 0, 127))
-                    elif feature == 1:
-                        delay = int(self.unscale(value, 0, 15))
-                    elif feature == 2:
-                        duration = int(self.unscale(value, 0, 15))
-                    else:
-                        raise Exception("Too many features per note.")
-                if (delay + duration > frame_delay):
-                    frame_delay = delay + duration
-                print(f"Frame {frame + 1} - Note {note + 1}: Pitch {pitch} - Delay {delay} - Duration {duration}")
-                if duration != 0:
-                    mf.addNote(track, frame * notes_per_frame + note, pitch, total_delay + delay, duration, volume)
-            total_delay += frame_delay
+            if not self.last_skipped or frame == len(frames) - 1:
+                frame_delay = 0
+                for note in range(notes_per_frame):
+                    pitch = 0
+                    delay = 0
+                    duration = 0
+                    for feature in range(features_per_note):
+                        index = note * features_per_note + feature
+                        value = frames[frame][index]
+                        if feature == 0:
+                            pitch = int(self.unscale(value, 0, 127))
+                        elif feature == 1:
+                            delay = int(self.unscale(value, 0, 15))
+                        elif feature == 2:
+                            duration = int(self.unscale(value, 0, 15))
+                        else:
+                            raise Exception("Too many features per note.")
+                    if (delay + duration > frame_delay):
+                        frame_delay = delay + duration
+                    print(f"Frame {frame + 1} - Note {note + 1}: Pitch {pitch} - Delay {delay} - Duration {duration}")
+                    if duration != 0:
+                        mf.addNote(track, frame * notes_per_frame + note, pitch, total_delay + delay, duration, volume)
+                total_delay += frame_delay
+            else:
+                print("Speed Training: Frame was skipped and will not be played.")
             print()
         
         midi_file = "output.mid"
