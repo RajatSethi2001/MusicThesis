@@ -1,12 +1,9 @@
-from contextlib import contextmanager
 import gym
 import numpy as np
 import os
-import sys
 import time
 import vlc
 
-from contextlib import contextmanager
 from gym.spaces import Box
 from midiutil import MIDIFile
 

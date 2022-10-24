@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 from MusicEnv import MusicEnv
 from os.path import exists
 from stable_baselines3 import PPO, TD3
